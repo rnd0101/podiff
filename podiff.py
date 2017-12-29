@@ -1,6 +1,11 @@
 #! /usr/bin/env python2
 
-import polib, os, sys, argparse
+import argparse
+import difflib
+import sys
+
+import polib
+
 
 def podiff(old_pofile, new_pofile):
     # TODO support context
@@ -25,7 +30,7 @@ def podiff(old_pofile, new_pofile):
             identical = False
 
         if not identical:
-            changed.append({'old':old_msg, 'new':new_msg})
+            changed.append({'old': old_msg, 'new': new_msg})
 
     # metadata
     added_metadata_keys = set(new_pofile.metadata) - set(old_pofile.metadata)
@@ -38,22 +43,43 @@ def podiff(old_pofile, new_pofile):
         new_metadata = new_pofile.metadata[common]
 
         if old_metadata != new_metadata:
-            changed_metadata.append({'key': common, 'old':old_metadata, 'new':new_metadata})
-
+            changed_metadata.append({'key': common, 'old': old_metadata, 'new': new_metadata})
 
     return {
-        'added':[new_msgs[x] for x in added_msgs], 'deleted':[old_msgs[x] for x in deleted_msgs], 'changed':changed,
+        'added': [new_msgs[x] for x in added_msgs],
+        'deleted': [old_msgs[x] for x in deleted_msgs],
+        'changed': changed,
         'added_metadata_keys': [x for x in new_pofile.metadata.items() if x[0] in added_metadata_keys],
         'deleted_metadata_keys': [x for x in old_pofile.metadata.items() if x[0] in deleted_metadata_keys],
         'changed_metadata': changed_metadata,
     }
 
-    
+
 def _repr_msg(msg):
     if msg.msgid_plural == '':
         return '%r' % msg.msgid
     else:
         return '%r/%r' % (msg.msgid, msg.msgid_plural)
+
+
+def unified_like_diff(diff):
+    d = difflib.Differ()
+    for msg in diff['changed']:
+        old, new = msg['old'], msg['new']
+        old_entry = unicode(polib.POEntry(msgid=old.msgid, msgstr=old.msgstr, msgstr_plural=old.msgstr_plural))
+        new_entry = unicode(polib.POEntry(msgid=new.msgid, msgstr=new.msgstr, msgstr_plural=new.msgstr_plural))
+        print u"\n".join(d.compare(old_entry.split("\n"), new_entry.split("\n")))
+
+    for new in diff['added']:
+        new_entry = unicode(polib.POEntry(msgid=new.msgid, msgstr=new.msgstr, msgstr_plural=new.msgstr_plural))
+        old_entry = u''
+        print u"\n".join(d.compare(old_entry.split("\n"), new_entry.split("\n")))
+
+    for old in diff['deleted']:
+        old_entry = unicode(polib.POEntry(msgid=old.msgid, msgstr=old.msgstr, msgstr_plural=old.msgstr_plural))
+        new_entry = u''
+        print u"\n".join(d.compare(old_entry.split("\n"), new_entry.split("\n")))
+
 
 def pprint_diff(diff):
     if len(diff['added']) > 0:
@@ -61,14 +87,16 @@ def pprint_diff(diff):
             if msg.msgid_plural == '':
                 print "New msg: msgid=%r msgstr=%r msgctxt=%r" % (msg.msgid, msg.msgstr, msg.msgctxt)
             else:
-                print "New msg: msgid=%r/%r msgstr=%r msgctxt=%r" % (msg.msgid, msg.msgid_plural, msg.msgstr, msg.msgctxt)
+                print "New msg: msgid=%r/%r msgstr=%r msgctxt=%r" % (
+                msg.msgid, msg.msgid_plural, msg.msgstr, msg.msgctxt)
 
     if len(diff['deleted']) > 0:
         for msg in diff['deleted']:
             if msg.msgid_plural == '':
                 print "Deleted msg: msgid=%r msgstr=%r msgctxt=%r" % (msg.msgid, msg.msgstr, msg.msgctxt)
             else:
-                print "Deleted msg: msgid=%r/%r msgstr=%r msgctxt=%r" % (msg.msgid, msg.msgid_plural, msg.msgstr, msg.msgctxt)
+                print "Deleted msg: msgid=%r/%r msgstr=%r msgctxt=%r" % (
+                msg.msgid, msg.msgid_plural, msg.msgstr, msg.msgctxt)
 
     for msg in diff['changed']:
         old, new = msg['old'], msg['new']
@@ -86,7 +114,6 @@ def pprint_diff(diff):
         if len(deleted_flags) > 0:
             print "\tDelete flags: %s" % (",".join(sorted(deleted_flags)))
 
-
     for key, value in diff['added_metadata_keys']:
         print "New metadata: %r: %r" % (key, value)
 
@@ -98,7 +125,6 @@ def pprint_diff(diff):
         print "\told: %r" % key['old']
         print "\tnew: %r" % key['new']
 
-
     diff_keys = ['added', 'deleted', 'changed', 'added_metadata_keys', 'deleted_metadata_keys', 'changed_metadata']
     if all(len(diff[key]) == 0 for key in diff_keys):
         print "pofiles are semantically identical"
@@ -108,9 +134,10 @@ def exit_code(diff):
     diff_keys = ['added', 'deleted', 'changed', 'added_metadata_keys', 'deleted_metadata_keys', 'changed_metadata']
     return 0 if all(len(diff[key]) == 0 for key in diff_keys) else 1
 
+
 def main():
     parser = argparse.ArgumentParser()
-    #parser.add_argument('--no-ignore-comments')
+    parser.add_argument('-u', action='store_true', help='More resembling unified format, ignore comments')
 
     parser.add_argument('old_file')
     parser.add_argument('new_file')
@@ -118,10 +145,13 @@ def main():
 
     diffs = podiff(polib.pofile(args.old_file), polib.pofile(args.new_file))
 
-    pprint_diff(diffs)
+    if args.u:
+        unified_like_diff(diffs)
+    else:
+        pprint_diff(diffs)
+
     return exit_code(diffs)
 
 
 if __name__ == '__main__':
     sys.exit(main())
-        
