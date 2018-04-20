@@ -66,9 +66,9 @@ def unified_like_diff(diff):
     d = difflib.Differ()
     for msg in diff['changed']:
         old, new = msg['old'], msg['new']
-        old_entry = unicode(polib.POEntry(msgid=old.msgid, msgstr=old.msgstr, msgstr_plural=old.msgstr_plural))
-        new_entry = unicode(polib.POEntry(msgid=new.msgid, msgstr=new.msgstr, msgstr_plural=new.msgstr_plural))
-        print u"\n".join(d.compare(old_entry.split("\n"), new_entry.split("\n")))
+        old_entry = unicode(polib.POEntry(msgid=old.msgid, msgstr=old.msgstr, msgstr_plural=old.msgstr_plural)).encode('utf-8')
+        new_entry = unicode(polib.POEntry(msgid=new.msgid, msgstr=new.msgstr, msgstr_plural=new.msgstr_plural)).encode('utf-8')
+        print "\n".join(d.compare(old_entry.split("\n"), new_entry.split("\n")))
 
     for new in diff['added']:
         new_entry = unicode(polib.POEntry(msgid=new.msgid, msgstr=new.msgstr, msgstr_plural=new.msgstr_plural))
