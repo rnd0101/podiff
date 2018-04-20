@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="podiff",
-    version="0.2",
+    version="0.2.1",
     author="Rory McCann",
     author_email="rory@technomancy.org",
     py_modules=['podiff'],
